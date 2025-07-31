@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>البحث في القرآن</title>
+  <style>
+    @font-face {
+      font-family: 'AlQalam';
+      src: url('alqalam.ttf') format('truetype');
+    }
+
+    body {
+      font-family: 'AlQalam', sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+      color: #111;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      font-size: 22px;
+      font-family: 'AlQalam', sans-serif;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 10px 0;
+    }
+
+    li {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      cursor: pointer;
+      font-size: 20px;
+    }
+
+    #popup {
+      display: none;
+      position: fixed;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 20px;
+      width: 80%;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      z-index: 1000;
+    }
+
+    #popup button {
+      margin-top: 10px;
+      font-family: 'AlQalam', sans-serif;
+      font-size: 18px;
+      margin-left: 5px;
+    }
+
+    #count {
+      margin-top: 10px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    mark {
+      background: yellow;
+    }
+
+    /* ✅ Mobile-Friendly Enhancements */
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+        font-size: 18px;
+      }
+
+      input {
+        font-size: 20px;
+        padding: 12px;
+      }
+
+      #popup {
+        width: 95%;
+        top: 5%;
+        padding: 15px;
+      }
+
+      #popup button {
+        font-size: 16px;
+        padding: 10px;
+        margin: 5px 3px 0 3px;
+      }
+
+      li {
+        font-size: 18px;
+        padding: 8px;
+      }
+
+      #verseText {
+        font-size: 22px;
+      }
+
+      #popupRef {
+        font-size: 16px;
+      }
+
+      #count {
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<h2>البحث في القرآن</h2>
+<input type="text" id="searchBox" placeholder="اكتب كلمة...">
+<ul id="suggestionList"></ul>
+<div id="count"></div>
+<ul id="resultList"></ul>
+
+<div id="popup">
+  <div id="popupRef" style="font-size: 18px; color: #444; margin-bottom: 10px;"></div>
+  <div id="verseText" style="font-size: 24px;"></div>
+  <button onclick="shareVerse()">Share</button>
+  <button onclick="copyVerse()">Copy</button>
+  <button onclick="closePopup()">Close</button>
+</div>
+
+<script src="index.js"></script>
+<script src="verses.js"></script>
+
+<script>
+  const searchBox = document.getElementById("searchBox");
+  const suggestionList = document.getElementById("suggestionList");
+  const resultList = document.getElementById("resultList");
+  const countDiv = document.getElementById("count");
+
+  let timeout;
+  let selectedWords = [];
+  let referenceSets = [];
+
+  function debounceSearch() {
+  clearTimeout(timeout);
+  timeout = setTimeout(() => {
+    const input = searchBox.value.trimEnd();
+
+    if (input === "") {
+      selectedWords = [];
+      referenceSets = [];
+      resultList.innerHTML = "";
+      suggestionList.innerHTML = "";
+      countDiv.textContent = "";
+      return;
+    }
+
+    const inputWords = input.split(" ");
+    if (input.endsWith(" ")) {
+      return;
+    }
+
+    const currentWord = inputWords[inputWords.length - 1];
+
+    if (currentWord === "") return;
+
+    // 👇 Hide result list while typing a new word
+    resultList.innerHTML = "";
+    countDiv.textContent = "";
+
+    suggestionList.innerHTML = "";
+    const matches = indexData.filter(([noHarakaat]) =>
+      noHarakaat.startsWith(currentWord)
+    );
+    matches.forEach(([_, withHarakaat]) => {
+      const li = document.createElement("li");
+      li.textContent = withHarakaat;
+      li.onclick = () => selectSuggestion(withHarakaat);
+      suggestionList.appendChild(li);
+    });
+  }, 300);
+}
+
+  function selectSuggestion(wordWithHarakaat) {
+    const words = searchBox.value.trim().split(" ");
+    if (searchBox.value.endsWith(" ") || words.length === 0) {
+      words.push(wordWithHarakaat);
+    } else {
+      words[words.length - 1] = wordWithHarakaat;
+    }
+    searchBox.value = words.join(" ") + " ";
+
+    suggestionList.innerHTML = "";
+
+    const [entry] = indexData.filter(([_, harakaat]) => harakaat === wordWithHarakaat);
+    if (!entry) return;
+
+    const references = entry[2].split("@");
+    referenceSets.push(new Set(references));
+    selectedWords.push(wordWithHarakaat);
+
+    if (selectedWords.length === 1) {
+      showReferences(references, wordWithHarakaat);
+    } else {
+      const commonRefs = intersectSets(referenceSets);
+      const phrase = selectedWords.join(" ");
+
+      const matched = commonRefs.filter(ref => {
+        const verse = getVerseByRef(ref);
+        return verse.includes(phrase);
+      });
+
+      showReferences(matched, phrase);
+    }
+  }
+
+  function showReferences(refs, phrase = "") {
+    resultList.innerHTML = "";
+    countDiv.textContent = `عدد النتائج: ${refs.length}`;
+    refs.forEach(ref => {
+      const li = document.createElement("li");
+      li.textContent = formatReference(ref);
+      li.onclick = () => showVersePopup(ref, phrase);
+      resultList.appendChild(li);
+    });
+  }
+
+  function formatReference(ref) {
+    const [surah, ayah, para, rukoo] = ref.split(":");
+    return `سورة ${surah}، آية ${ayah}، جزء ${para}، ربع ${rukoo}`;
+  }
+
+  function getVerseByRef(ref) {
+    const verse = versesData.find(([r]) => r === ref);
+    return verse ? verse[1] : "";
+  }
+
+  function highlight(verse, phrase) {
+    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(escaped, "g");
+    return verse.replace(regex, `<mark>${phrase}</mark>`);
+  }
+
+  function showVersePopup(ref, phrase = "") {
+    const verseTextDiv = document.getElementById("verseText");
+    const popupRefDiv = document.getElementById("popupRef");
+    const originalVerse = getVerseByRef(ref);
+
+    if (phrase && originalVerse.includes(phrase)) {
+      verseTextDiv.innerHTML = highlight(originalVerse, phrase);
+    } else {
+      verseTextDiv.textContent = originalVerse;
+    }
+
+    popupRefDiv.textContent = formatReference(ref);
+
+    const popup = document.getElementById("popup");
+    popup.style.display = "block";
+    popup.scrollIntoView({ behavior: "smooth" });
+  }
+
+  function closePopup() {
+    document.getElementById("popup").style.display = "none";
+  }
+
+  function shareVerse() {
+  const verse = document.getElementById("verseText").textContent;
+  const ref = document.getElementById("popupRef").textContent;
+  const fullText = `${verse}\n(${ref})`;
+
+  if (navigator.share) {
+    navigator.share({ text: fullText });
+  } else {
+    alert("sharing not supported");
+  }
+}
+
+  function copyVerse() {
+  const verse = document.getElementById("verseText").textContent;
+  const ref = document.getElementById("popupRef").textContent;
+  const fullText = `${verse}\n(${ref})`;
+  navigator.clipboard.writeText(fullText).then(() => {
+    alert("Copied to clipboard");
+  });
+}
+
+  function intersectSets(sets) {
+    if (sets.length === 0) return [];
+    return [...sets.reduce((a, b) => new Set([...a].filter(x => b.has(x))))];
+  }
+
+  searchBox.addEventListener("input", debounceSearch);
+
+  searchBox.addEventListener("keydown", function(e) {
+    if (e.key === "Backspace") {
+      const value = searchBox.value;
+      const trimmed = value.trimEnd();
+      if (value.endsWith(" ") || selectedWords.length > 0 && trimmed.endsWith(selectedWords[selectedWords.length - 1])) {
+        e.preventDefault();
+        selectedWords.pop();
+        referenceSets.pop();
+        const newSearch = selectedWords.join(" ");
+        searchBox.value = newSearch + (newSearch ? " " : "");
+
+        if (selectedWords.length === 0) {
+          resultList.innerHTML = "";
+          countDiv.textContent = "";
+        } else if (selectedWords.length === 1) {
+          showReferences([...referenceSets[0]], selectedWords[0]);
+        } else {
+          const commonRefs = intersectSets(referenceSets);
+          const phrase = selectedWords.join(" ");
+          const matched = commonRefs.filter(ref => {
+            const verse = getVerseByRef(ref);
+            return verse.includes(phrase);
+          });
+          showReferences(matched, phrase);
+        }
+
+        suggestionList.innerHTML = "";
+      }
+    }
+  });
+
+  window.addEventListener("click", function(e) {
+    const popup = document.getElementById("popup");
+    if (popup.style.display === "block" && !popup.contains(e.target) && e.target.tagName !== "LI") {
+      closePopup();
+    }
+  });
+</script>
+</body>
+</html>
