@@ -1,331 +1,1063 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>البحث في القرآن</title>
-  <style>
-    @font-face {
-      font-family: 'AlQalam';
-      src: url('alqalam.ttf') format('truetype');
-    }
+<meta charset="UTF-8">
+<title>البحث في القرآن</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  @font-face {
+    font-family: 'AlQalam';
+    src: url('alqalam.ttf') format('truetype');
+  }
+  :root { --base-font-size: clamp(1.6rem, 5.0vw, 1.9rem); }
+  body {
+    font-family: 'AlQalam', sans-serif;
+    padding: 0.5rem;
+    background: #fffdd2;   
+    color: #111;
+    font-size: var(--base-font-size);
+    line-height: 1.4;
+    direction: rtl;
+    unicode-bidi: plaintext;
+  }
+  h2 { font-size: var(--base-font-size); margin: 0.3rem 0 0.6rem 0; text-align: center; }
+  input {
+    width: 100%; 
+    font-size: var(--base-font-size);
+    font-family: 'AlQalam', sans-serif;
+    border: 1px solid #ccc; 
+    border-radius: 10px;
+    box-sizing: border-box; 
+    margin-bottom: 1rem;
+    padding: 0 0.6rem;
+    height: calc(1em + 0.8rem);
+    text-align: right;
+    background: #fffdd2;   
+  }
+  input[type="radio"] { transform: scale(1); width: auto; height: auto; background: #fffdd2; }
+  ul { list-style: none; padding: 0; margin: 0.4rem 0; background: #fffdd2; }
+  #suggestionList {
+    display: flex; flex-wrap: wrap; gap: 0.6rem; padding: 0.5rem 0;
+    overflow-y: auto; max-height: 8rem; background: #fffdd2;
+  }
+  #suggestionList li {
+    display: inline-block; background: #e0f0ff;
+    padding: 0.3rem 0.6rem; border-radius: 6px; border: 1px solid #ccc;
+    font-size: var(--base-font-size); cursor: pointer; white-space: nowrap; color: #000;
+  }
+  #resultList { flex: 1; overflow-y: auto; background: #fffdd2; }
+  #resultList li {
+    padding: 0; margin: 0; border-bottom: 1px solid #ddd;
+    cursor: pointer; font-size: var(--base-font-size); line-height: 1.4;
+    background: #fffdd2;
+  }
+  #count { margin-top: 0.5rem; font-weight: bold; font-size: calc(var(--base-font-size) * 0.75); text-align: center; }
+  label input[type="radio"] { transform: scale(1); }
+  label { font-size: calc(var(--base-font-size) * 0.75); }
+  mark { background: #e0f0ff; } 
 
-    body {
-      font-family: 'AlQalam', sans-serif;
-      padding: 20px;
-      background: #f9f9f9;
-      color: #111;
-    }
+  #searchContainer { position: relative; width: 100%; }
 
-    input {
-      width: 100%;
-      padding: 10px;
-      font-size: 22px;
-      font-family: 'AlQalam', sans-serif;
-    }
+  /* --- POPUP --- */
+  #popup {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #fffdd2;
+    z-index: 10000;
+    overflow: hidden;
+    border-radius: 0;
+  }
 
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 10px 0;
-    }
+  /* bottom navy blue belt */
+  #popupButtons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem;
+    background: #0074d9;
+    position: fixed;
+    bottom: 0; left: 1rem; right: 1rem;
+    width: 96%;
+    z-index: 1000;
+  }
+  #popupButtons button {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    font-size: 1.4rem;
+    padding: 0.4rem 0.2rem;
+    user-select: none;
+  }
+  #popupButtons button:hover { background: #e0f0ff; }
 
-    li {
-      padding: 10px;
-      border-bottom: 1px solid #ddd;
-      cursor: pointer;
-      font-size: 20px;
-    }
+  #popupContent {
+    overflow-y: auto;
+    padding: 1rem;
+    padding-top: 3.5rem;
+    height: calc(100% - 4rem);
+    -webkit-overflow-scrolling: touch;
+  }
+  .verseBlock {
+    margin: 0.5rem 0.6rem;
+    padding: 0;
+    border-bottom: 1px dashed #aaa;
+    border-radius: 8px;
+    background: #ffffcf;
+  }
+  .verseRef {
+    font-weight: bold;
+    font-size: calc(var(--base-font-size) * 0.7);
+    margin: 0.08rem 0;
+    text-align: center;
+    color: #333;
+  }
+  .verseText {
+    font-size: var(--popup-font-size, 1.6rem);
+    text-align: center;
+    word-break: break-word;
+    line-height: 1.8;
+    margin: 0.2rem 0;
+  }
+  #listsContainer { display: flex; flex-direction: column; height: calc(100vh - 220px); background: #fffdd2; }
+  #listsContainer.full-suggestions { height: calc(100vh - 180px); }
+  #listsContainer.full-suggestions #suggestionList { flex: 1; max-height: none; overflow-y: auto; }
+  #listsContainer.full-suggestions #resultList, #listsContainer.full-suggestions #count { display: none; }
 
-    #popup {
-      display: none;
-      position: fixed;
-      top: 10%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #fff;
-      border: 1px solid #ccc;
-      padding: 20px;
-      width: 80%;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
-      z-index: 1000;
-    }
-
-    #popup button {
-      margin-top: 10px;
-      font-family: 'AlQalam', sans-serif;
-      font-size: 18px;
-      margin-left: 5px;
-    }
-
-    #count {
-      margin-top: 10px;
-      font-weight: bold;
-      font-size: 18px;
-    }
-
-    mark {
-      background: yellow;
-    }
-
-    /* ✅ Mobile-Friendly Enhancements */
-    @media (max-width: 600px) {
-      body {
-        padding: 10px;
-        font-size: 18px;
-      }
-
-      input {
-        font-size: 20px;
-        padding: 12px;
-      }
-
-      #popup {
-        width: 95%;
-        top: 5%;
-        padding: 15px;
-      }
-
-      #popup button {
-        font-size: 16px;
-        padding: 10px;
-        margin: 5px 3px 0 3px;
-      }
-
-      li {
-        font-size: 18px;
-        padding: 8px;
-      }
-
-      #verseText {
-        font-size: 22px;
-      }
-
-      #popupRef {
-        font-size: 16px;
-      }
-
-      #count {
-        font-size: 16px;
-      }
-    }
-  </style>
+  /* Settings Popup */
+  #settingsPopup {
+  display:none; 
+  position: fixed;
+  top: 10%;
+  left: 9%;
+  transform: translateX(-50%);
+  background: #ffffcf;
+  border: 2px solid #0074d9;
+  border-radius: 10px;
+  padding: 1rem;
+  z-index: 20000;
+  max-width: 90%;
+  font-size: 1.4rem;
+  text-align: right;
+  margin-bottom: 6rem;  /* leaves space above the blue belt */
+}
+  #settingsPopup h3 { margin-top:0; }
+</style>
 </head>
 <body>
-
 <h2>البحث في القرآن</h2>
-<input type="text" id="searchBox" placeholder="اكتب كلمة...">
-<ul id="suggestionList"></ul>
-<div id="count"></div>
-<ul id="resultList"></ul>
 
-<div id="popup">
-  <div id="popupRef" style="font-size: 18px; color: #444; margin-bottom: 10px;"></div>
-  <div id="verseText" style="font-size: 24px;"></div>
-  <button onclick="shareVerse()">Share</button>
-  <button onclick="copyVerse()">Copy</button>
-  <button onclick="closePopup()">Close</button>
+<div id="searchContainer">
+  <input type="text" id="searchBox" placeholder="اكتب كلمة...">
+  <div id="popup" style="display:none;">
+    <div id="popupButtons">
+      <button id="closeBtn" onclick="closePopup()">X</button>
+      <button id="nextBtn" onclick="scrollDown15()">▼</button>
+      <button id="prevBtn" onclick="scrollUp15()">▲</button>
+      <button id="copyBtn" onclick="copyVisibleVerses()">Copy</button>
+      <button id="increaseFontBtn" onclick="adjustFontSize(1)">+</button>
+      <button id="decreaseFontBtn" onclick="adjustFontSize(-1)">−</button>
+    </div>
+    <div id="popupContent"></div>
+  </div>
+</div>
+
+<!-- Settings popup -->
+<div id="settingsPopup" onclick="event.stopPropagation()">
+  <h3>إعدادات العرض</h3>
+  <label><input type="checkbox" id="toggleArabic" checked> عرض النص العربي</label><br>
+  <label><input type="checkbox" id="toggleWordByWord" checked> ترجمہ لفظ بہ لفظ</label><br>
+  <label><input type="checkbox" id="toggleSimple" checked> ترجمہ سادہ اردو</label><br>
+  <label><input type="checkbox" id="toggleTafseer" checked> تفسیر اردو</label><br><br>
+  <button onclick="closeSettingsPopup()">OK</button>
+</div>
+
+<div style="display: flex; justify-content: center; gap: 2rem; margin-bottom: 1rem; font-size: var(--base-font-size); background:#fffdd2;">
+  <label><input type="radio" name="matchMode" value="exact">ابتداء لفظ</label>
+  <label><input type="radio" name="matchMode" value="partial" checked="">وسط لفظ</label>
+  <label><input type="radio" name="matchMode" value="suffix">انتهاء لفظ</label>
+</div>
+
+<div id="listsContainer">
+  <ul id="suggestionList"></ul>
+  <div id="count"></div>
+  <ul id="resultList"></ul>
 </div>
 
 <script src="index.js"></script>
 <script src="verses.js"></script>
+<script src="wordByWord.js"></script>
+<script src="simpleTranslation.js"></script>
+<script src="tafseer.js"></script>
 
 <script>
-  const searchBox = document.getElementById("searchBox");
-  const suggestionList = document.getElementById("suggestionList");
-  const resultList = document.getElementById("resultList");
-  const countDiv = document.getElementById("count");
-
-  let timeout;
-  let selectedWords = [];
-  let referenceSets = [];
-
-  function debounceSearch() {
-  clearTimeout(timeout);
-  timeout = setTimeout(() => {
-    const input = searchBox.value.trimEnd();
-
-    if (input === "") {
-      selectedWords = [];
-      referenceSets = [];
-      resultList.innerHTML = "";
-      suggestionList.innerHTML = "";
-      countDiv.textContent = "";
-      return;
-    }
-
-    const inputWords = input.split(" ");
-    if (input.endsWith(" ")) {
-      return;
-    }
-
-    const currentWord = inputWords[inputWords.length - 1];
-
-    if (currentWord === "") return;
-
-    // 👇 Hide result list while typing a new word
-    resultList.innerHTML = "";
-    countDiv.textContent = "";
-
-    suggestionList.innerHTML = "";
-    const matches = indexData.filter(([noHarakaat]) =>
-      noHarakaat.startsWith(currentWord)
-    );
-    matches.forEach(([_, withHarakaat]) => {
-      const li = document.createElement("li");
-      li.textContent = withHarakaat;
-      li.onclick = () => selectSuggestion(withHarakaat);
-      suggestionList.appendChild(li);
-    });
-  }, 300);
+// settings popup handlers
+function openSettingsPopup(){ document.getElementById("settingsPopup").style.display="block"; }
+function closeSettingsPopup(){
+  document.getElementById("settingsPopup").style.display="none";
+  localStorage.setItem("showArabic", document.getElementById("toggleArabic").checked);
+  localStorage.setItem("showWordByWord", document.getElementById("toggleWordByWord").checked);
+  localStorage.setItem("showSimple", document.getElementById("toggleSimple").checked);
+  localStorage.setItem("showTafseer", document.getElementById("toggleTafseer").checked);
+  refreshPopupContent();
 }
-
-  function selectSuggestion(wordWithHarakaat) {
-    const words = searchBox.value.trim().split(" ");
-    if (searchBox.value.endsWith(" ") || words.length === 0) {
-      words.push(wordWithHarakaat);
-    } else {
-      words[words.length - 1] = wordWithHarakaat;
+// load saved preferences
+document.addEventListener("DOMContentLoaded", ()=>{
+  ["Arabic","WordByWord","Simple","Tafseer"].forEach(type=>{
+    const key="show"+type;
+    if(localStorage.getItem(key)!==null){
+      document.getElementById("toggle"+type).checked = localStorage.getItem(key)==="true";
     }
-    searchBox.value = words.join(" ") + " ";
-
-    suggestionList.innerHTML = "";
-
-    const [entry] = indexData.filter(([_, harakaat]) => harakaat === wordWithHarakaat);
-    if (!entry) return;
-
-    const references = entry[2].split("@");
-    referenceSets.push(new Set(references));
-    selectedWords.push(wordWithHarakaat);
-
-    if (selectedWords.length === 1) {
-      showReferences(references, wordWithHarakaat);
-    } else {
-      const commonRefs = intersectSets(referenceSets);
-      const phrase = selectedWords.join(" ");
-
-      const matched = commonRefs.filter(ref => {
-        const verse = getVerseByRef(ref);
-        return verse.includes(phrase);
-      });
-
-      showReferences(matched, phrase);
-    }
-  }
-
-  function showReferences(refs, phrase = "") {
-    resultList.innerHTML = "";
-    countDiv.textContent = `عدد النتائج: ${refs.length}`;
-    refs.forEach(ref => {
-      const li = document.createElement("li");
-      li.textContent = formatReference(ref);
-      li.onclick = () => showVersePopup(ref, phrase);
-      resultList.appendChild(li);
-    });
-  }
-
-  function formatReference(ref) {
-    const [surah, ayah, para, rukoo] = ref.split(":");
-    return `سورة ${surah}، آية ${ayah}، جزء ${para}، ربع ${rukoo}`;
-  }
-
-  function getVerseByRef(ref) {
-    const verse = versesData.find(([r]) => r === ref);
-    return verse ? verse[1] : "";
-  }
-
-  function highlight(verse, phrase) {
-    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(escaped, "g");
-    return verse.replace(regex, `<mark>${phrase}</mark>`);
-  }
-
-  function showVersePopup(ref, phrase = "") {
-    const verseTextDiv = document.getElementById("verseText");
-    const popupRefDiv = document.getElementById("popupRef");
-    const originalVerse = getVerseByRef(ref);
-
-    if (phrase && originalVerse.includes(phrase)) {
-      verseTextDiv.innerHTML = highlight(originalVerse, phrase);
-    } else {
-      verseTextDiv.textContent = originalVerse;
-    }
-
-    popupRefDiv.textContent = formatReference(ref);
-
-    const popup = document.getElementById("popup");
-    popup.style.display = "block";
-    popup.scrollIntoView({ behavior: "smooth" });
-  }
-
-  function closePopup() {
-    document.getElementById("popup").style.display = "none";
-  }
-
-  function shareVerse() {
-  const verse = document.getElementById("verseText").textContent;
-  const ref = document.getElementById("popupRef").textContent;
-  const fullText = `${verse}\n(${ref})`;
-
-  if (navigator.share) {
-    navigator.share({ text: fullText });
-  } else {
-    alert("sharing not supported");
-  }
-}
-
-  function copyVerse() {
-  const verse = document.getElementById("verseText").textContent;
-  const ref = document.getElementById("popupRef").textContent;
-  const fullText = `${verse}\n(${ref})`;
-  navigator.clipboard.writeText(fullText).then(() => {
-    alert("Copied to clipboard");
   });
-}
-
-  function intersectSets(sets) {
-    if (sets.length === 0) return [];
-    return [...sets.reduce((a, b) => new Set([...a].filter(x => b.has(x))))];
+});
+function refreshPopupContent(){
+  const popup=document.getElementById("popup");
+  if(!popup || popup.style.display==="none") return;
+  if(!currentVerseRef) return;
+  const idx=getVerseIndex(currentVerseRef);
+  if(idx<0) return;
+    loadInitialChunk(idx,popupPhraseCache);
+    const verses=document.querySelectorAll(".verseText");
+    verses.forEach(v=>v.style.fontSize=popupFontSize+"rem");
   }
 
-  searchBox.addEventListener("input", debounceSearch);
+</script>
+<script>
+const searchBox = document.getElementById("searchBox");
+const suggestionList = document.getElementById("suggestionList");
+const resultList = document.getElementById("resultList");
+const countDiv = document.getElementById("count");
+const listsContainer = document.getElementById("listsContainer");
 
-  searchBox.addEventListener("keydown", function(e) {
-    if (e.key === "Backspace") {
-      const value = searchBox.value;
-      const trimmed = value.trimEnd();
-      if (value.endsWith(" ") || selectedWords.length > 0 && trimmed.endsWith(selectedWords[selectedWords.length - 1])) {
-        e.preventDefault();
-        selectedWords.pop();
-        referenceSets.pop();
-        const newSearch = selectedWords.join(" ");
-        searchBox.value = newSearch + (newSearch ? " " : "");
+let timeout, selectedWords = [], referenceSets = [], currentVerseRef = null, firstWordSelected = false;
 
-        if (selectedWords.length === 0) {
-          resultList.innerHTML = "";
-          countDiv.textContent = "";
-        } else if (selectedWords.length === 1) {
-          showReferences([...referenceSets[0]], selectedWords[0]);
-        } else {
-          const commonRefs = intersectSets(referenceSets);
-          const phrase = selectedWords.join(" ");
-          const matched = commonRefs.filter(ref => {
-            const verse = getVerseByRef(ref);
-            return verse.includes(phrase);
-          });
-          showReferences(matched, phrase);
-        }
+function normalizeInput(text) {
+  return text.replace(/ک/g, "ك").replace(/ی/g, "ي").replace(/ھ/g, "ه").replace(/ہ/g, "ه").replace(/ۃ/g, "ة");
+}
+function stripHarakaat(text) { return text.replace(/[\u064B-\u0652\u0670\u06D6-\u06ED]/g, ""); }
+function sortSuggestionsByLength(words) {
+  return words.sort((a,b)=>stripHarakaat(normalizeInput(a)).length - stripHarakaat(normalizeInput(b)).length);
+}
 
-        suggestionList.innerHTML = "";
+const verseIndexMap = {};
+versesData.forEach(([ref], idx) => verseIndexMap[ref] = idx);
+function getVerseIndex(ref) { return verseIndexMap.hasOwnProperty(ref)?verseIndexMap[ref]:versesData.findIndex(([r])=>r===ref); }
+
+searchBox.addEventListener('input', function() {
+  const cursorPos = searchBox.selectionStart;
+  searchBox.value = normalizeInput(searchBox.value);
+  searchBox.setSelectionRange(cursorPos, cursorPos);
+
+  const trimmed = searchBox.value.trim();
+  if(trimmed==="") {
+    selectedWords=[]; referenceSets=[]; resultList.innerHTML=""; suggestionList.innerHTML=""; countDiv.textContent="";
+    listsContainer.classList.remove("full-suggestions"); firstWordSelected=false; return;
+  }
+  debounceSearch();
+});
+
+function debounceSearch() {
+  clearTimeout(timeout);
+  timeout = setTimeout(()=>{
+    const raw = searchBox.value;
+    const input = raw.trimEnd();
+
+    if(selectedWords.length>0){
+      listsContainer.classList.remove("full-suggestions");
+      if(raw.endsWith(" ")) { showNextWordSuggestions(); }
+      else { const currentWord = raw.slice(raw.lastIndexOf(" ")+1); showNextWordSuggestions(); showFilteredNextWordSuggestions(currentWord); }
+      return;
+    }
+
+    if(input==="") { resultList.innerHTML=""; suggestionList.innerHTML=""; countDiv.textContent=""; listsContainer.classList.remove("full-suggestions"); return; }
+    if(input.endsWith(" ")) return;
+
+    let currentWord=input.split(" ").pop(); if(!currentWord) return;
+    if(selectedWords.length===0) listsContainer.classList.add("full-suggestions");
+
+    const matchMode=document.querySelector('input[name="matchMode"]:checked').value;
+    let matches=indexData.filter(([noHarakaat])=>matchMode==="exact"?noHarakaat.startsWith(currentWord):matchMode==="partial"?noHarakaat.includes(currentWord):noHarakaat.endsWith(currentWord));
+    let wordsWithHarakaat=sortSuggestionsByLength(matches.map(([_,withHarakaat])=>withHarakaat));
+
+    suggestionList.innerHTML="";
+    wordsWithHarakaat.forEach(word=>{
+      const li=document.createElement("li"); li.textContent=word; li.onclick=()=>selectSuggestion(word); suggestionList.appendChild(li);
+    });
+    suggestionList.scrollTop=0;
+  },300);
+}
+
+// --- next word suggestion ---
+function showNextWordSuggestions() {
+  const commonRefs = intersectSets(referenceSets);
+  const phraseWithHarakaat = selectedWords.join(" ");
+  const nextWordPairs = [];
+
+  commonRefs.forEach(ref=>{
+    const verse = getVerseByRef(ref);
+    const words = verse.trim().split(/\s+/);
+    for(let i=0;i<=words.length-selectedWords.length;i++){
+      if(words.slice(i,i+selectedWords.length).join(" ")===phraseWithHarakaat){
+        const nextWord = words[i+selectedWords.length]; if(nextWord) nextWordPairs.push([ref,nextWord]);
       }
     }
   });
 
-  window.addEventListener("click", function(e) {
-    const popup = document.getElementById("popup");
-    if (popup.style.display === "block" && !popup.contains(e.target) && e.target.tagName !== "LI") {
-      closePopup();
+  nextWordPairs.sort((a,b)=>getVerseIndex(a[0])-getVerseIndex(b[0]));
+
+  const seen=new Set(); const orderedNextWords=[];
+  nextWordPairs.forEach(([_,word])=>{ if(!seen.has(word)){ seen.add(word); orderedNextWords.push(word); } });
+
+  suggestionList.innerHTML="";
+  orderedNextWords.forEach(word=>{ const li=document.createElement("li"); li.textContent=word; li.onclick=()=>selectSuggestion(word); suggestionList.appendChild(li); });
+  suggestionList.scrollTop=0;
+}
+
+function showFilteredNextWordSuggestions(prefix){
+  const items=[...suggestionList.querySelectorAll("li")];
+  const normalizedPrefix=stripHarakaat(normalizeInput(prefix));
+  let filtered=items.filter(li=>stripHarakaat(normalizeInput(li.textContent)).startsWith(normalizedPrefix));
+  let sortedFiltered=sortSuggestionsByLength(filtered.map(li=>li.textContent));
+
+  suggestionList.innerHTML="";
+  sortedFiltered.forEach(word=>{ const li=document.createElement("li"); li.textContent=word; li.onclick=()=>selectSuggestion(word); suggestionList.appendChild(li); });
+  suggestionList.scrollTop=0;
+}
+
+// --- selection ---
+function selectSuggestion(wordWithHarakaat){
+  listsContainer.classList.remove("full-suggestions");
+  const words=searchBox.value.trim().split(" ");
+  if(searchBox.value.endsWith(" ")||words.length===0) words.push(wordWithHarakaat); else words[words.length-1]=wordWithHarakaat;
+  searchBox.value=words.join(" ")+" "; suggestionList.innerHTML="";
+
+  const [entry] = indexData.filter(([_,h])=>h===wordWithHarakaat);
+  if(entry) referenceSets.push(new Set(entry[2].split("@")));
+  selectedWords.push(wordWithHarakaat);
+  if(selectedWords.length===1) firstWordSelected=true;
+
+  const commonRefs=intersectSets(referenceSets);
+  const phrase=selectedWords.join(" ");
+  const matched=commonRefs.filter(ref=>getVerseByRef(ref).includes(phrase));
+  showReferences(matched,phrase); showNextWordSuggestions();
+}
+
+// --- display ---
+function showReferences(refs, phrase=""){
+  resultList.innerHTML="";
+  const sortedRefs=refs.slice().sort((a,b)=>getVerseIndex(a)-getVerseIndex(b));
+  const verseCount=sortedRefs.length;
+  let occurrenceCount=0;
+  if(phrase){
+    const regex=new RegExp("(^|\\s)"+phrase.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?=\\s|$)","g");
+    sortedRefs.forEach(ref=>{ const verse=getVerseByRef(ref); const matches=verse.match(regex); if(matches) occurrenceCount+=matches.length; });
+  }
+  countDiv.textContent=`عدد النتائج: ${verseCount} آية – عدد التكرار: ${occurrenceCount} مرة`;
+
+  sortedRefs.forEach(ref=>{
+    const verse=getVerseByRef(ref);
+    let perVerseCount=0;
+    if(phrase){ const regex=new RegExp("(^|\\s)"+phrase.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?=\\s|$)","g"); const matches=verse.match(regex); if(matches) perVerseCount=matches.length; }
+
+    const li=document.createElement("li");
+    const refDiv=document.createElement("div"); refDiv.textContent=formatReference(ref);
+    const countDivPerVerse=document.createElement("div"); countDivPerVerse.textContent=`تكرار في هذه الآية: ${perVerseCount}`;
+    countDivPerVerse.style.fontSize="0.8em"; countDivPerVerse.style.color="#555"; countDivPerVerse.style.marginRight="1rem";
+
+    li.appendChild(refDiv); li.appendChild(countDivPerVerse);
+    li.onclick=()=>showVersePopup(ref,phrase);
+    resultList.appendChild(li);
+  });
+  resultList.scrollTop=0;
+}
+
+function formatReference(ref){ const [s,a,p,r]=ref.split(":"); return `سورة ${s}، آية ${a}، جزء ${p}، ركوع ${r}`; }
+function getVerseByRef(ref){ const verse=versesData.find(([r])=>r===ref); return verse?verse[1]:""; }
+function highlight(verse,phrase){ const escaped=phrase.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); const regex=new RegExp("(^|\\s)"+escaped+"(?=\\s|$)","g"); return verse.replace(regex,m=>m.replace(escaped,`<mark>${phrase}</mark>`)); }
+
+/* ---------------------------
+   POPUP: infinite scroll reader + copy visible partial text
+   These functions replace the previous popup functions.
+   --------------------------- */
+
+let CHUNK = 20; // number of verses per batch loaded
+let loadedStart = null, loadedEnd = null; // indices currently loaded in popup
+let popupPhraseCache = ""; // phrase used for highlight in current popup
+
+function appendBlockAt(container, idx, phrase) {
+  const [r, verse] = versesData[idx];
+  if (container.querySelector(`[data-ref="${r}"]`)) return;
+  const block = document.createElement("div");
+  block.className = "verseBlock";
+  block.setAttribute("data-ref", r);
+
+  const refDiv = document.createElement("div");
+  refDiv.className = "verseRef";
+  refDiv.textContent = formatReference(r);
+
+  const textDiv = document.createElement("div");
+  textDiv.className = "verseText";
+  textDiv.innerHTML = (phrase && verse.includes(phrase)) ? highlight(verse, phrase) : verse;
+  
+  // APPLY CURRENT FONT SIZE
+  textDiv.style.fontSize = popupFontSize + "rem";
+
+  block.appendChild(refDiv);
+  block.appendChild(textDiv);
+  container.appendChild(block);
+}
+
+function prependBlockAt(container, idx, phrase) {
+  const [r, verse] = versesData[idx];
+  if (container.querySelector(`[data-ref="${r}"]`)) return;
+  const block = document.createElement("div");
+  block.className = "verseBlock";
+  block.setAttribute("data-ref", r);
+
+  const refDiv = document.createElement("div");
+  refDiv.className = "verseRef";
+  refDiv.textContent = formatReference(r);
+
+  const textDiv = document.createElement("div");
+  textDiv.className = "verseText";
+  textDiv.innerHTML = (phrase && verse.includes(phrase)) ? highlight(verse, phrase) : verse;
+
+  // APPLY CURRENT FONT SIZE
+  textDiv.style.fontSize = popupFontSize + "rem";
+
+  block.appendChild(refDiv);
+  block.appendChild(textDiv);
+  container.insertBefore(block, container.firstChild);
+}
+
+function loadInitialChunk(centerIdx, phrase) {
+  const container = document.getElementById("popupContent");
+  container.innerHTML = "";
+
+  const half = Math.floor(CHUNK / 2);
+  let start = Math.max(0, centerIdx - half);
+  // ensure we have CHUNK items if possible (shift start near end)
+  if (start + CHUNK > versesData.length) start = Math.max(0, versesData.length - CHUNK);
+  let end = Math.min(versesData.length - 1, start + CHUNK - 1);
+
+  for (let i = start; i <= end; i++) appendBlockAt(container, i, phrase);
+
+  loadedStart = start;
+  loadedEnd = end;
+}
+
+function showVersePopup(ref, phrase = "") {
+  const popup = document.getElementById("popup");
+  const container = document.getElementById("popupContent");
+  popupPhraseCache = phrase || "";
+
+  const idx = getVerseIndex(ref);
+  if (idx < 0) return;
+
+  // load initial window around idx
+  loadInitialChunk(idx, popupPhraseCache);
+
+ // apply last font size
+  const verses = container.querySelectorAll(".verseText");
+  verses.forEach(v => v.style.fontSize = popupFontSize + "rem");
+
+  // show popup (use 'block' since original code checked for "block")
+  popup.style.display = "block";
+  currentVerseRef = ref;
+
+  setTimeout(() => {
+    // center selected verse
+    const sel = container.querySelector(`[data-ref="${ref}"]`);
+    if (sel) sel.scrollIntoView({ behavior: "instant" /* keep instantaneous to avoid layout jump */ , block: "center" });
+    // ensure we set currentVerseRef correctly
+    const centered = getCenteredBlock();
+    if (centered) currentVerseRef = centered.getAttribute("data-ref");
+  }, 30);
+
+  // attach infinite-scroll behavior once
+  if (!container._infiniteAttached) {
+    container._infiniteAttached = true;
+    container.addEventListener('scroll', function() {
+      // load previous chunk if near top
+      if (container.scrollTop < 120 && loadedStart > 0) {
+        const oldScrollHeight = container.scrollHeight;
+        const newStart = Math.max(0, loadedStart - CHUNK);
+        for (let i = newStart; i < loadedStart; i++) {
+          prependBlockAt(container, i, popupPhraseCache);
+        }
+        // update indices and keep scroll position stable
+        loadedStart = newStart;
+        container.scrollTop += (container.scrollHeight - oldScrollHeight);
+      }
+      // load next chunk if near bottom
+      if (container.scrollHeight - container.scrollTop - container.clientHeight < 120 && loadedEnd < versesData.length - 1) {
+        const oldScrollHeight = container.scrollHeight;
+        const newEnd = Math.min(versesData.length - 1, loadedEnd + CHUNK);
+        for (let i = loadedEnd + 1; i <= newEnd; i++) {
+          appendBlockAt(container, i, popupPhraseCache);
+        }
+        loadedEnd = newEnd;
+        // no need to adjust scrollTop
+      }
+
+      // update currentVerseRef based on view (synchronized tracking)
+      const centered = getCenteredBlock();
+      if (centered) currentVerseRef = centered.getAttribute("data-ref");
+    }, { passive: true });
+  } else {
+    // if previously attached, ensure highlighted phrase updated for blocks already present
+    const blocks = container.querySelectorAll(".verseBlock");
+    blocks.forEach(b => {
+      const ref = b.getAttribute("data-ref");
+      const v = getVerseByRef(ref);
+      const txtEl = b.querySelector(".verseText");
+      txtEl.innerHTML = (popupPhraseCache && v.includes(popupPhraseCache)) ? highlight(v, popupPhraseCache) : v;
+    });
+    // also update currentVerseRef to center block if any
+    setTimeout(() => {
+      const centered = getCenteredBlock();
+      if (centered) currentVerseRef = centered.getAttribute("data-ref");
+    }, 50);
+  }
+}
+
+function closePopup() { document.getElementById("popup").style.display = "none"; }
+
+/* copy only the visible portion of each verse block */
+function copyVisibleVerses() {
+  const container = document.getElementById("popupContent");
+  const cRect = container.getBoundingClientRect();
+  const blocks = [...container.querySelectorAll(".verseBlock")];
+  const parts = [];
+
+  blocks.forEach(block => {
+    const rect = block.getBoundingClientRect();
+    const visTop = Math.max(rect.top, cRect.top);
+    const visBottom = Math.min(rect.bottom, cRect.bottom);
+    const visiblePx = visBottom - visTop;
+    if (visiblePx > 0.5) { // some part visible
+      const textEl = block.querySelector(".verseText");
+      const fullText = textEl.innerText.trim();
+      // compute relative slice of visible portion
+      const relStart = Math.max(0, (visTop - rect.top) / rect.height);
+      const relEnd = Math.min(1, (visBottom - rect.top) / rect.height);
+      // slice characters proportionally (best-effort)
+      const startIdx = Math.floor(relStart * fullText.length);
+      const endIdx = Math.ceil(relEnd * fullText.length);
+      const snippet = fullText.slice(startIdx, endIdx).trim();
+      if (snippet.length > 0) {
+        const ref = block.getAttribute("data-ref");
+        parts.push(`${formatReference(ref)}\n${snippet}`);
+      }
     }
   });
+
+  if (parts.length > 0) {
+    navigator.clipboard.writeText(parts.join("\n\n")).then(() => alert("تم نسخ النصوص الظاهرة"));
+  } else {
+    alert("لا توجد نصوص ظاهرة للنسخ");
+  }
+}
+
+/* prev/next controls:
+   If previous/next verse is already loaded in the DOM we smoothly center it.
+   Otherwise we reload popup centered on that verse (keeps behavior predictable).
+*/
+  function showPrevVerse() {
+            const prev = document.getElementById('prev');
+            const offsetTop = prev.offsetTop - container.offsetTop + container.scrollTop;
+            const debouncedScroll = debounce((top) => {
+                container.scrollTo({ top, behavior: 'smooth' });
+            }, 100);
+            debouncedScroll(offsetTop);
+        }
+
+        function showNextVerse() {
+            const next = document.getElementById('next');
+            const offsetTop = next.offsetTop - container.offsetTop + container.scrollTop;
+            const debouncedScroll = debounce((top) => {
+                container.scrollTo({ top, behavior: 'smooth' });
+            }, 100);
+            debouncedScroll(offsetTop);
+        }
+
+        function attachSwipe() {
+            let initialX = null;
+            let initialY = null;
+
+            function handleTouchStart(event) {
+                initialX = event.touches[0].clientX;
+                initialY = event.touches[0].clientY;
+            }
+
+            function handleTouchMove(event) {
+                if (!initialX || !initialY) return;
+
+                const currentX = event.touches[0].clientX;
+                const currentY = event.touches[0].clientY;
+                const diffX = currentX - initialX;
+                const diffY = currentY - initialY;
+
+                if (Math.abs(diffX) > Math.abs(diffY)) {
+                    const threshold = 50;
+                    if (Math.abs(diffX) > threshold) {
+                        const debouncedScroll = debounce((top) => {
+                            container.scrollTo({ top, behavior: 'smooth' });
+                        }, 100);
+                        debouncedScroll(container.scrollTop - diffX);
+                    }
+                }
+
+                initialX = currentX;
+                initialY = currentY;
+            }
+
+            function handleTouchEnd() {
+                initialX = null;
+                initialY = null;
+            }
+
+            container.addEventListener('touchstart', handleTouchStart);
+            container.addEventListener('touchmove', handleTouchMove);
+            container.addEventListener('touchend', handleTouchEnd);
+        }
+
+        function debounce(func, wait, immediate) {
+            let timeout;
+            return function() {
+                const context = this, args = arguments;
+                const later = function() {
+                    timeout = null;
+                    if (!immediate) func.apply(context, args);
+                };
+                const callNow = immediate && !timeout;
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+                if (callNow) func.apply(context, args);
+            };
+        }
+
+/* find the verse block closest to center of popup viewport */
+function getCenteredBlock() {
+  const container = document.getElementById("popupContent");
+  if (!container) return null;
+  const cRect = container.getBoundingClientRect();
+  const centerY = cRect.top + cRect.height / 2;
+  let best = null, bestDiff = Infinity;
+  container.querySelectorAll(".verseBlock").forEach(b => {
+    const r = b.getBoundingClientRect();
+    const mid = r.top + r.height / 2;
+    const diff = Math.abs(mid - centerY);
+    if (diff < bestDiff) { bestDiff = diff; best = b; }
+  });
+  return best;
+}
+
+/* Click anywhere outside result <li> should keep original behavior:
+   close popup if clicking outside (keeps it compatible with original checks).
+*/
+const originalPopup = document.getElementById("popup");
+window.addEventListener("click", e => {
+  const popup = document.getElementById("popup");
+  if (
+    popup &&
+    window.getComputedStyle(popup).display !== "none" &&
+    !popup.contains(e.target) &&
+    e.target.tagName !== "LI" &&
+    e.target.parentElement?.tagName !== "LI"
+  ) {
+    closePopup();
+  }
+});
+
+/* --- Backspace direct deletion (kept from original, unchanged) --- */
+searchBox.addEventListener('keydown', function(e) {
+  if (e.key === 'Backspace') {
+    e.preventDefault();
+    let val = searchBox.value;
+    if (!val.trim()) {
+      searchBox.value = ""; selectedWords = []; referenceSets = [];
+      resultList.innerHTML = ""; suggestionList.innerHTML = ""; countDiv.textContent = "";
+      listsContainer.classList.remove("full-suggestions"); debounceSearch(); firstWordSelected = false; return;
+    }
+    val = val.trimEnd(); const lastSpace = val.lastIndexOf(" ");
+    searchBox.value = (lastSpace >= 0) ? val.substring(0,lastSpace+1) : "";
+    selectedWords = searchBox.value.trim().split(" ").filter(w => w.length>0).map(normalizeInput);
+
+    referenceSets = [];
+    selectedWords.forEach(word => { const [entry] = indexData.filter(([_, h]) => h === word); if (entry) referenceSets.push(new Set(entry[2].split("@"))); });
+    if (selectedWords.length === 0) {
+      resultList.innerHTML = ""; suggestionList.innerHTML = ""; countDiv.textContent = "";
+      listsContainer.classList.remove("full-suggestions"); debounceSearch(); firstWordSelected = false;
+    } else {
+      const commonRefs = intersectSets(referenceSets);
+      const phrase = selectedWords.join(" ");
+      const matched = commonRefs.filter(ref => getVerseByRef(ref).includes(phrase));
+      showReferences(matched, phrase); showNextWordSuggestions();
+    }
+  }
+});
+
+/* helper */
+function intersectSets(sets) { if (sets.length===0) return []; return [...sets.reduce((a,b)=>new Set([...a].filter(x=>b.has(x))))]; }
+
+/* NOTE:
+   - versesData and indexData are provided via your verses.js and index.js files (kept as <script> tags above).
+   - showVersePopup(ref, phrase) is used by the result list items (li.onclick).
+   - copyVisibleVerses() copies the visible portion(s) of verse(s) as required.
+*/
+// --- new smooth scroll by 15% (used by ▲ button)
+// --- scroll to show next fully hidden verse at top
+// Scroll down: next page starts with the last line of current page
+  
+let popupFontSize = parseFloat(localStorage.getItem('popupFontSize')) || 1.6;
+
+function adjustFontSize(delta) {
+  popupFontSize += delta * 0.1; 
+  if (popupFontSize < 1) popupFontSize = 1;   
+  if (popupFontSize > 3) popupFontSize = 3;
+
+  // save current font size to persist across sessions
+  localStorage.setItem('popupFontSize', popupFontSize);
+
+  const verses = document.querySelectorAll("#popupContent .verseText");
+  verses.forEach(v => v.style.fontSize = popupFontSize + "rem");
+}
+let container = document.getElementById("popupContent");
+let scrollInterval = null;
+let holdTimer = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+  const prevVerse = document.getElementById('prevBtn');
+  const nextVerse = document.getElementById('nextBtn');
+
+  function startScroll(direction) {
+    stopScroll(); 
+    scrollInterval = setInterval(() => {
+      container.scrollTop += direction * 5; // 5px per step
+    }, 16); // ~60fps
+  }
+
+  function stopScroll() {
+    if (scrollInterval) {
+      clearInterval(scrollInterval);
+      scrollInterval = null;
+    }
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+  }
+
+  function pageScroll(direction) {
+    container.scrollTop += direction * container.clientHeight; // one full page
+  }
+
+  function setupButton(btn, direction) {
+    // Mouse support
+    btn.addEventListener('mousedown', () => {
+      holdTimer = setTimeout(() => {
+        startScroll(direction); // start continuous if held >200ms
+      }, 200);
+    });
+
+    btn.addEventListener('mouseup', () => {
+      if (holdTimer) {
+        pageScroll(direction); // short press = one page
+      }
+      stopScroll();
+    });
+
+    btn.addEventListener('mouseleave', stopScroll);
+
+    // Touch support (Android/iOS)
+    btn.addEventListener('touchstart', (e) => {
+      e.preventDefault(); // prevent ghost click
+      holdTimer = setTimeout(() => {
+        startScroll(direction);
+      }, 200);
+    });
+
+    btn.addEventListener('touchend', () => {
+      if (holdTimer) {
+        pageScroll(direction); // tap = one page
+      }
+      stopScroll();
+    });
+
+    btn.addEventListener('touchcancel', stopScroll);
+  }
+
+  setupButton(prevVerse, -1); // scroll up
+  setupButton(nextVerse, 1);  // scroll down
+});
+  document.addEventListener("DOMContentLoaded", () => {
+  const popupContent = document.getElementById("popupContent");
+  const buttonBelt = document.querySelector("#popup .button-belt"); // adjust if belt has different selector
+
+  function adjustPadding() {
+    if (popupContent && buttonBelt) {
+      popupContent.style.paddingBottom = (buttonBelt.offsetHeight + 10) + "px"; 
+    }
+  }
+
+  adjustPadding();
+  window.addEventListener("resize", adjustPadding);
+});
 </script>
+<script>
+(function(){
+  const DEBUG = false;              // set true to see console logs
+  const STEP_PCT = 0.5;             // 50% of visible popup height
+  const IGNORE_INPUT_FOCUS = false; // set true if arrow keys must work even when input focused
+
+  if (window.__halfPageScrollInstalled) {
+    if (DEBUG) console.log('half-page scroll already installed');
+    return;
+  }
+  window.__halfPageScrollInstalled = true;
+
+  function getContainer() {
+    return document.getElementById('popupContent');
+  }
+
+  function isPopupVisible() {
+    const popup = document.getElementById('popup');
+    if (!popup) return false;
+    const style = window.getComputedStyle(popup);
+    return style.display !== 'none' && popup.offsetParent !== null;
+  }
+
+  function clampTop(t) {
+    const c = getContainer();
+    if (!c) return 0;
+    return Math.max(0, Math.min(c.scrollHeight - c.clientHeight, t));
+  }
+
+  function scrollByPercent(direction) {
+    const c = getContainer();
+    if (!c) {
+      if (DEBUG) console.warn('popupContent not found');
+      return;
+    }
+    const step = Math.round(c.clientHeight * STEP_PCT);
+    const newTop = clampTop(c.scrollTop + direction * step);
+    // If newTop equals current, do small nudge to show movement
+    if (newTop === c.scrollTop) {
+      // try to nudge to end/start
+      const fallback = direction > 0 ? (c.scrollHeight - c.clientHeight) : 0;
+      if (fallback !== c.scrollTop) {
+        c.scrollTo({ top: fallback, behavior: 'smooth' });
+        if (DEBUG) console.log('fallback scroll to', fallback);
+        return;
+      }
+      if (DEBUG) console.log('already at boundary; no scroll');
+      return;
+    }
+    c.scrollTo({ top: newTop, behavior: 'smooth' });
+    if (DEBUG) console.log('scrolled to', newTop, 'step', step);
+  }
+
+  // expose globals (override old definitions if present)
+  window.scrollDown15 = function() { scrollByPercent(1); };
+  window.scrollUp15   = function() { scrollByPercent(-1); };
+
+  // keyboard handler (capture phase so we catch it earlier)
+  function onKey(e) {
+    try {
+      if (!isPopupVisible()) return;
+      if (!IGNORE_INPUT_FOCUS && ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+
+      switch (e.key) {
+        case 'ArrowDown':
+        case 'PageDown':
+          e.preventDefault(); scrollByPercent(1); break;
+        case 'ArrowUp':
+        case 'PageUp':
+          e.preventDefault(); scrollByPercent(-1); break;
+        case ' ':
+          if (!['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) {
+            e.preventDefault();
+            if (e.shiftKey) scrollByPercent(-1); else scrollByPercent(1);
+          }
+          break;
+      }
+    } catch (err) {
+      if (DEBUG) console.error('half-page onKey error', err);
+    }
+  }
+
+  // attach listener once
+  document.addEventListener('keydown', onKey, true);
+
+  // bind buttons (click/touch)
+  function bindButtons() {
+    const prev = document.getElementById('prevBtn');
+    const next = document.getElementById('nextBtn');
+    if (prev) prev.addEventListener('click', (ev) => { ev.preventDefault(); scrollByPercent(-1); });
+    if (next) next.addEventListener('click', (ev) => { ev.preventDefault(); scrollByPercent(1); });
+
+    // optional: support long-press to continuous scroll
+    [ [prev, -1], [next, 1] ].forEach(([btn, dir]) => {
+      if (!btn) return;
+      let holdTimer = null;
+      let intv = null;
+      btn.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        holdTimer = setTimeout(() => {
+          intv = setInterval(() => {
+            const c = getContainer();
+            if (!c) return;
+            c.scrollTop = clampTop(c.scrollTop + dir * 8); // continuous small steps
+          }, 16);
+        }, 220);
+      });
+      const stop = () => { clearTimeout(holdTimer); holdTimer = null; if (intv) { clearInterval(intv); intv = null; } };
+      btn.addEventListener('pointerup', (ev) => { stop(); scrollByPercent(dir); });
+      btn.addEventListener('pointerleave', stop);
+      btn.addEventListener('pointercancel', stop);
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindButtons);
+  else bindButtons();
+
+  if (DEBUG) console.log('half-page scroll installed (STEP_PCT=' + STEP_PCT + ', IGNORE_INPUT_FOCUS=' + IGNORE_INPUT_FOCUS + ')');
+})();
+
+function appendBlockAt(container, idx, phrase) {
+  const [r, verse] = versesData[idx];
+  if (container.querySelector(`[data-ref="${r}"]`)) return;
+
+  const block = document.createElement("div");
+  block.className = "verseBlock";
+  block.setAttribute("data-ref", r);
+
+  const refDiv = document.createElement("div");
+  refDiv.className = "verseRef";
+  refDiv.textContent = formatReference(r);
+  block.appendChild(refDiv);
+
+  // Arabic
+  if (document.getElementById("toggleArabic")?.checked) {
+    const textDiv = document.createElement("div");
+    textDiv.className = "verseText";
+    textDiv.innerHTML = (phrase && verse.includes(phrase)) ? highlight(verse, phrase) : verse;
+    textDiv.style.fontSize = popupFontSize + "rem";
+    block.appendChild(textDiv);
+  }
+
+  // Word by Word
+  if (document.getElementById("toggleWordByWord")?.checked && window.wordByWordData) {
+    const wEntry = wordByWordData.find(([ref]) => ref === r);
+    if (wEntry) {
+      const w = document.createElement("div");
+      w.className = "verseText";
+      w.style.color = "green";
+      w.textContent = wEntry[1];
+      w.style.fontSize = popupFontSize + "rem";
+      block.appendChild(w);
+    }
+  }
+
+  // Simple Translation
+  if (document.getElementById("toggleSimple")?.checked && window.simpleTranslationData) {
+    const sEntry = simpleTranslationData.find(([ref]) => ref === r);
+    if (sEntry) {
+      const s = document.createElement("div");
+      s.className = "verseText";
+      s.style.color = "blue";
+      s.textContent = sEntry[1];
+      s.style.fontSize = popupFontSize + "rem";
+      block.appendChild(s);
+    }
+  }
+
+  // Tafseer
+  if (document.getElementById("toggleTafseer")?.checked && window.tafseerData) {
+    const tEntry = tafseerData.find(([ref]) => ref === r);
+    if (tEntry) {
+      const t = document.createElement("div");
+      t.className = "verseText";
+      t.style.color = "brown";
+      t.textContent = tEntry[1];
+      t.style.fontSize = popupFontSize + "rem";
+      block.appendChild(t);
+    }
+  }
+
+  container.appendChild(block);
+}
+
+function prependBlockAt(container, idx, phrase) {
+  const [r, verse] = versesData[idx];
+  if (container.querySelector(`[data-ref="${r}"]`)) return;
+
+  const block = document.createElement("div");
+  block.className = "verseBlock";
+  block.setAttribute("data-ref", r);
+
+  const refDiv = document.createElement("div");
+  refDiv.className = "verseRef";
+  refDiv.textContent = formatReference(r);
+  block.appendChild(refDiv);
+
+  // Arabic
+  if (document.getElementById("toggleArabic")?.checked) {
+    const textDiv = document.createElement("div");
+    textDiv.className = "verseText";
+    textDiv.innerHTML = (phrase && verse.includes(phrase)) ? highlight(verse, phrase) : verse;
+    textDiv.style.fontSize = popupFontSize + "rem";
+    block.appendChild(textDiv);
+  }
+
+  // Word by Word
+  if (document.getElementById("toggleWordByWord")?.checked && window.wordByWordData) {
+    const wEntry = wordByWordData.find(([ref]) => ref === r);
+    if (wEntry) {
+      const w = document.createElement("div");
+      w.className = "verseText";
+      w.style.color = "green";
+      w.textContent = wEntry[1];
+      w.style.fontSize = popupFontSize + "rem";
+      block.appendChild(w);
+    }
+  }
+
+  // Simple Translation
+  if (document.getElementById("toggleSimple")?.checked && window.simpleTranslationData) {
+    const sEntry = simpleTranslationData.find(([ref]) => ref === r);
+    if (sEntry) {
+      const s = document.createElement("div");
+      s.className = "verseText";
+      s.style.color = "blue";
+      s.textContent = sEntry[1];
+      s.style.fontSize = popupFontSize + "rem";
+      block.appendChild(s);
+    }
+  }
+
+  // Tafseer
+  if (document.getElementById("toggleTafseer")?.checked && window.tafseerData) {
+    const tEntry = tafseerData.find(([ref]) => ref === r);
+    if (tEntry) {
+      const t = document.createElement("div");
+      t.className = "verseText";
+      t.style.color = "brown";
+      t.textContent = tEntry[1];
+      t.style.fontSize = popupFontSize + "rem";
+      block.appendChild(t);
+    }
+  }
+
+  container.insertBefore(block, container.firstChild);
+}
+
+</script>
+
 </body>
 </html>
