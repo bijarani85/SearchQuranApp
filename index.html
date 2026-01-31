@@ -149,12 +149,78 @@
   margin-bottom: 6rem;  /* leaves space above the blue belt */
 }
   #settingsPopup h3 { margin-top:0; }
+
+  /* --- ARABIC KEYBOARD STYLES --- */
+  #keyboardToggleBtn {
+    background: #0074d9;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.4rem 1rem;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    font-family: sans-serif;
+  }
+  #virtualKeyboard {
+    display: none;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 4px;
+    background: #e9e9c0;
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+    direction: rtl;
+  }
+  .key {
+    background: #fff;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    padding: 8px 0;
+    text-align: center;
+    cursor: pointer;
+    font-family: 'AlQalam', sans-serif;
+    font-size: 1.2rem;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  .key:active { background: #d0d0d0; }
+  .key.wide { grid-column: span 2; background: #dcdcb0; font-size: 1rem; }
 </style>
 </head>
 <body>
 <h2>البحث في القرآن</h2>
 
 <div id="searchContainer">
+  <div style="display: flex; justify-content: flex-end;">
+    <button id="keyboardToggleBtn" onclick="toggleKeyboard()">Arabic keyboard ⌨️</button>
+  </div>
+
+  <div id="virtualKeyboard">
+    <div class="key" onclick="typeChar('ض')">ض</div><div class="key" onclick="typeChar('ص')">ص</div>
+    <div class="key" onclick="typeChar('ث')">ث</div><div class="key" onclick="typeChar('ق')">ق</div>
+    <div class="key" onclick="typeChar('ف')">ف</div><div class="key" onclick="typeChar('غ')">غ</div>
+    <div class="key" onclick="typeChar('ع')">ع</div><div class="key" onclick="typeChar('ه')">ه</div>
+    <div class="key" onclick="typeChar('خ')">خ</div><div class="key" onclick="typeChar('ح')">ح</div>
+    <div class="key" onclick="typeChar('ج')">ج</div><div class="key" onclick="typeChar('د')">د</div>
+    <div class="key" onclick="typeChar('ش')">ش</div><div class="key" onclick="typeChar('س')">س</div>
+    <div class="key" onclick="typeChar('ي')">ي</div><div class="key" onclick="typeChar('ب')">ب</div>
+    <div class="key" onclick="typeChar('ل')">ل</div><div class="key" onclick="typeChar('ا')">ا</div>
+    <div class="key" onclick="typeChar('ت')">ت</div><div class="key" onclick="typeChar('ن')">ن</div>
+    <div class="key" onclick="typeChar('م')">م</div><div class="key" onclick="typeChar('ك')">ك</div>
+    <div class="key" onclick="typeChar('ط')">ط</div><div class="key" onclick="typeChar('ئ')">ئ</div>
+    <div class="key" onclick="typeChar('ء')">ء</div><div class="key" onclick="typeChar('ؤ')">ؤ</div>
+    <div class="key" onclick="typeChar('ر')">ر</div><div class="key" onclick="typeChar('لا')">لا</div>
+    <div class="key" onclick="typeChar('ى')">ى</div><div class="key" onclick="typeChar('ة')">ة</div>
+    <div class="key" onclick="typeChar('و')">و</div><div class="key" onclick="typeChar('ز')">ز</div>
+    <div class="key" onclick="typeChar('ظ')">ظ</div><div class="key" onclick="typeChar('ذ')">ذ</div>
+    <div class="key" onclick="typeChar('آ')">آ</div><div class="key" onclick="typeChar('إ')">إ</div>
+    <div class="key" onclick="typeChar('أ')">أ</div>
+    <div class="key wide" onclick="typeChar(' ')">مسافة</div>
+    <div class="key wide" onclick="backspaceKey()">حذف</div>
+  </div>
+
   <input type="text" id="searchBox" placeholder="اكتب كلمة...">
   <div id="popup" style="display:none;">
     <div id="popupButtons">
@@ -167,12 +233,11 @@
   </div>
 </div>
 
-<!-- Settings popup -->
 <div id="settingsPopup" onclick="event.stopPropagation()">
   <h3>إعدادات العرض</h3>
   <label><input type="checkbox" id="toggleArabic" checked> عرض النص العربي</label><br>
   <label><input type="checkbox" id="toggleWordByWord" checked> ترجمہ لفظ بہ لفظ</label><br>
-  <label><input type="checkbox" id="toggleSimple" checked> ترجمہ سادہ اردو</label><br>
+  <label><input type="checkbox" id=\"toggleSimple\" checked> ترجمہ سادہ اردو</label><br>
   <label><input type="checkbox" id="toggleTafseer" checked> تفسیر اردو</label><br><br>
   <button onclick="closeSettingsPopup()">OK</button>
 </div>
@@ -180,7 +245,7 @@
 <div style="display: flex; justify-content: center; gap: 2rem; margin-bottom: 1rem; font-size: var(--base-font-size); background:#fffdd2;">
   <label><input type="radio" name="matchMode" value="exact">ابتداء لفظ</label>
   <label><input type="radio" name="matchMode" value="partial" checked="">وسط لفظ</label>
-  <label><input type="radio" name="matchMode" value="suffix">انتهاء لفظ</label>
+  <label><input type="radio" name="matchMode" value="suffix">آخر لفظ</label>
 </div>
 
 <div id="listsContainer">
@@ -196,6 +261,49 @@
 <script src="tafseer.js"></script>
 
 <script>
+// --- VIRTUAL KEYBOARD LOGIC ---
+function toggleKeyboard() {
+  const kb = document.getElementById("virtualKeyboard");
+  const isHidden = (kb.style.display === "none" || kb.style.display === "");
+  
+  if (isHidden) {
+    kb.style.display = "grid";
+    // Prevents system keyboard on Android/iOS when using virtual buttons
+    searchBox.setAttribute("inputmode", "none"); 
+  } else {
+    kb.style.display = "none";
+    searchBox.removeAttribute("inputmode");
+  }
+}
+
+function typeChar(char) {
+  const start = searchBox.selectionStart;
+  const end = searchBox.selectionEnd;
+  const text = searchBox.value;
+  searchBox.value = text.slice(0, start) + char + text.slice(end);
+  searchBox.selectionStart = searchBox.selectionEnd = start + char.length;
+  searchBox.focus();
+  // Trigger original search logic
+  const event = new Event('input', { bubbles: true });
+  searchBox.dispatchEvent(event);
+}
+
+function backspaceKey() {
+  const start = searchBox.selectionStart;
+  const end = searchBox.selectionEnd;
+  const text = searchBox.value;
+  if (start === end && start > 0) {
+    searchBox.value = text.slice(0, start - 1) + text.slice(end);
+    searchBox.selectionStart = searchBox.selectionEnd = start - 1;
+  } else {
+    searchBox.value = text.slice(0, start) + text.slice(end);
+    searchBox.selectionStart = searchBox.selectionEnd = start;
+  }
+  searchBox.focus();
+  const event = new Event('input', { bubbles: true });
+  searchBox.dispatchEvent(event);
+}
+
 // settings popup handlers
 function openSettingsPopup(){ document.getElementById("settingsPopup").style.display="block"; }
 function closeSettingsPopup(){
@@ -380,18 +488,14 @@ function formatReference(ref){ const [s,a,p,r]=ref.split(":"); return `سورة 
 function getVerseByRef(ref){ const verse=versesData.find(([r])=>r===ref); return verse?verse[1]:""; }
 function highlight(verse,phrase){ const escaped=phrase.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); const regex=new RegExp("(^|\\s)"+escaped+"(?=\\s|$)","g"); return verse.replace(regex,m=>m.replace(escaped,`<mark>${phrase}</mark>`)); }
 
-/* ---------------------------
-   POPUP: infinite scroll reader + copy visible partial text
-   These functions replace the previous popup functions.
-   --------------------------- */
-
-let CHUNK = 20; // number of verses per batch loaded
-let loadedStart = null, loadedEnd = null; // indices currently loaded in popup
-let popupPhraseCache = ""; // phrase used for highlight in current popup
+let CHUNK = 20; 
+let loadedStart = null, loadedEnd = null; 
+let popupPhraseCache = ""; 
 
 function appendBlockAt(container, idx, phrase) {
   const [r, verse] = versesData[idx];
   if (container.querySelector(`[data-ref="${r}"]`)) return;
+
   const block = document.createElement("div");
   block.className = "verseBlock";
   block.setAttribute("data-ref", r);
@@ -399,22 +503,63 @@ function appendBlockAt(container, idx, phrase) {
   const refDiv = document.createElement("div");
   refDiv.className = "verseRef";
   refDiv.textContent = formatReference(r);
-
-  const textDiv = document.createElement("div");
-  textDiv.className = "verseText";
-  textDiv.innerHTML = (phrase && verse.includes(phrase)) ? highlight(verse, phrase) : verse;
-  
-  // APPLY CURRENT FONT SIZE
-  textDiv.style.fontSize = popupFontSize + "rem";
-
   block.appendChild(refDiv);
-  block.appendChild(textDiv);
+
+  // Arabic
+  if (document.getElementById("toggleArabic")?.checked) {
+    const textDiv = document.createElement("div");
+    textDiv.className = "verseText";
+    textDiv.innerHTML = (phrase && verse.includes(phrase)) ? highlight(verse, phrase) : verse;
+    textDiv.style.fontSize = popupFontSize + "rem";
+    block.appendChild(textDiv);
+  }
+
+  // Word by Word
+  if (document.getElementById("toggleWordByWord")?.checked && window.wordByWordData) {
+    const wEntry = wordByWordData.find(([ref]) => ref === r);
+    if (wEntry) {
+      const w = document.createElement("div");
+      w.className = "verseText";
+      w.style.color = "green";
+      w.textContent = wEntry[1];
+      w.style.fontSize = popupFontSize + "rem";
+      block.appendChild(w);
+    }
+  }
+
+  // Simple Translation
+  if (document.getElementById("toggleSimple")?.checked && window.simpleTranslationData) {
+    const sEntry = simpleTranslationData.find(([ref]) => ref === r);
+    if (sEntry) {
+      const s = document.createElement("div");
+      s.className = "verseText";
+      s.style.color = "blue";
+      s.textContent = sEntry[1];
+      s.style.fontSize = popupFontSize + "rem";
+      block.appendChild(s);
+    }
+  }
+
+  // Tafseer
+  if (document.getElementById("toggleTafseer")?.checked && window.tafseerData) {
+    const tEntry = tafseerData.find(([ref]) => ref === r);
+    if (tEntry) {
+      const t = document.createElement("div");
+      t.className = "verseText";
+      t.style.color = "brown";
+      t.textContent = tEntry[1];
+      t.style.fontSize = popupFontSize + "rem";
+      block.appendChild(t);
+    }
+  }
+
   container.appendChild(block);
 }
 
 function prependBlockAt(container, idx, phrase) {
   const [r, verse] = versesData[idx];
   if (container.querySelector(`[data-ref="${r}"]`)) return;
+
   const block = document.createElement("div");
   block.className = "verseBlock";
   block.setAttribute("data-ref", r);
@@ -422,31 +567,67 @@ function prependBlockAt(container, idx, phrase) {
   const refDiv = document.createElement("div");
   refDiv.className = "verseRef";
   refDiv.textContent = formatReference(r);
-
-  const textDiv = document.createElement("div");
-  textDiv.className = "verseText";
-  textDiv.innerHTML = (phrase && verse.includes(phrase)) ? highlight(verse, phrase) : verse;
-
-  // APPLY CURRENT FONT SIZE
-  textDiv.style.fontSize = popupFontSize + "rem";
-
   block.appendChild(refDiv);
-  block.appendChild(textDiv);
+
+  // Arabic
+  if (document.getElementById("toggleArabic")?.checked) {
+    const textDiv = document.createElement("div");
+    textDiv.className = "verseText";
+    textDiv.innerHTML = (phrase && verse.includes(phrase)) ? highlight(verse, phrase) : verse;
+    textDiv.style.fontSize = popupFontSize + "rem";
+    block.appendChild(textDiv);
+  }
+
+  // Word by Word
+  if (document.getElementById("toggleWordByWord")?.checked && window.wordByWordData) {
+    const wEntry = wordByWordData.find(([ref]) => ref === r);
+    if (wEntry) {
+      const w = document.createElement("div");
+      w.className = "verseText";
+      w.style.color = "green";
+      w.textContent = wEntry[1];
+      w.style.fontSize = popupFontSize + "rem";
+      block.appendChild(w);
+    }
+  }
+
+  // Simple Translation
+  if (document.getElementById("toggleSimple")?.checked && window.simpleTranslationData) {
+    const sEntry = simpleTranslationData.find(([ref]) => ref === r);
+    if (sEntry) {
+      const s = document.createElement("div");
+      s.className = "verseText";
+      s.style.color = "blue";
+      s.textContent = sEntry[1];
+      s.style.fontSize = popupFontSize + "rem";
+      block.appendChild(s);
+    }
+  }
+
+  // Tafseer
+  if (document.getElementById("toggleTafseer")?.checked && window.tafseerData) {
+    const tEntry = tafseerData.find(([ref]) => ref === r);
+    if (tEntry) {
+      const t = document.createElement("div");
+      t.className = "verseText";
+      t.style.color = "brown";
+      t.textContent = tEntry[1];
+      t.style.fontSize = popupFontSize + "rem";
+      block.appendChild(t);
+    }
+  }
+
   container.insertBefore(block, container.firstChild);
 }
 
 function loadInitialChunk(centerIdx, phrase) {
   const container = document.getElementById("popupContent");
   container.innerHTML = "";
-
   const half = Math.floor(CHUNK / 2);
   let start = Math.max(0, centerIdx - half);
-  // ensure we have CHUNK items if possible (shift start near end)
   if (start + CHUNK > versesData.length) start = Math.max(0, versesData.length - CHUNK);
   let end = Math.min(versesData.length - 1, start + CHUNK - 1);
-
   for (let i = start; i <= end; i++) appendBlockAt(container, i, phrase);
-
   loadedStart = start;
   loadedEnd = end;
 }
@@ -455,194 +636,64 @@ function showVersePopup(ref, phrase = "") {
   const popup = document.getElementById("popup");
   const container = document.getElementById("popupContent");
   popupPhraseCache = phrase || "";
-
   const idx = getVerseIndex(ref);
   if (idx < 0) return;
-
-  // load initial window around idx
   loadInitialChunk(idx, popupPhraseCache);
-
- // apply last font size
   const verses = container.querySelectorAll(".verseText");
   verses.forEach(v => v.style.fontSize = popupFontSize + "rem");
-
-  // show popup (use 'block' since original code checked for "block")
   popup.style.display = "block";
   currentVerseRef = ref;
 
   setTimeout(() => {
-    // center selected verse
     const sel = container.querySelector(`[data-ref="${ref}"]`);
-    if (sel) sel.scrollIntoView({ behavior: "instant" /* keep instantaneous to avoid layout jump */ , block: "center" });
-    // ensure we set currentVerseRef correctly
+    if (sel) sel.scrollIntoView({ behavior: "instant", block: "center" });
     const centered = getCenteredBlock();
     if (centered) currentVerseRef = centered.getAttribute("data-ref");
   }, 30);
 
-  // attach infinite-scroll behavior once
   if (!container._infiniteAttached) {
     container._infiniteAttached = true;
     container.addEventListener('scroll', function() {
-      // load previous chunk if near top
       if (container.scrollTop < 120 && loadedStart > 0) {
         const oldScrollHeight = container.scrollHeight;
         const newStart = Math.max(0, loadedStart - CHUNK);
-        for (let i = newStart; i < loadedStart; i++) {
-          prependBlockAt(container, i, popupPhraseCache);
-        }
-        // update indices and keep scroll position stable
+        for (let i = newStart; i < loadedStart; i++) prependBlockAt(container, i, popupPhraseCache);
         loadedStart = newStart;
         container.scrollTop += (container.scrollHeight - oldScrollHeight);
       }
-      // load next chunk if near bottom
       if (container.scrollHeight - container.scrollTop - container.clientHeight < 120 && loadedEnd < versesData.length - 1) {
-        const oldScrollHeight = container.scrollHeight;
         const newEnd = Math.min(versesData.length - 1, loadedEnd + CHUNK);
-        for (let i = loadedEnd + 1; i <= newEnd; i++) {
-          appendBlockAt(container, i, popupPhraseCache);
-        }
+        for (let i = loadedEnd + 1; i <= newEnd; i++) appendBlockAt(container, i, popupPhraseCache);
         loadedEnd = newEnd;
-        // no need to adjust scrollTop
       }
-
-      // update currentVerseRef based on view (synchronized tracking)
       const centered = getCenteredBlock();
       if (centered) currentVerseRef = centered.getAttribute("data-ref");
     }, { passive: true });
-  } else {
-    // if previously attached, ensure highlighted phrase updated for blocks already present
-    const blocks = container.querySelectorAll(".verseBlock");
-    blocks.forEach(b => {
-      const ref = b.getAttribute("data-ref");
-      const v = getVerseByRef(ref);
-      const txtEl = b.querySelector(".verseText");
-      txtEl.innerHTML = (popupPhraseCache && v.includes(popupPhraseCache)) ? highlight(v, popupPhraseCache) : v;
-    });
-    // also update currentVerseRef to center block if any
-    setTimeout(() => {
-      const centered = getCenteredBlock();
-      if (centered) currentVerseRef = centered.getAttribute("data-ref");
-    }, 50);
   }
 }
 
 function closePopup() { document.getElementById("popup").style.display = "none"; }
 
-/* copy only the visible portion of each verse block */
 function copyVisibleVerses() {
   const container = document.getElementById("popupContent");
   const cRect = container.getBoundingClientRect();
   const blocks = [...container.querySelectorAll(".verseBlock")];
   const parts = [];
-
   blocks.forEach(block => {
     const rect = block.getBoundingClientRect();
     const visTop = Math.max(rect.top, cRect.top);
     const visBottom = Math.min(rect.bottom, cRect.bottom);
-    const visiblePx = visBottom - visTop;
-    if (visiblePx > 0.5) { // some part visible
-      const textEl = block.querySelector(".verseText");
-      const fullText = textEl.innerText.trim();
-      // compute relative slice of visible portion
-      const relStart = Math.max(0, (visTop - rect.top) / rect.height);
-      const relEnd = Math.min(1, (visBottom - rect.top) / rect.height);
-      // slice characters proportionally (best-effort)
-      const startIdx = Math.floor(relStart * fullText.length);
-      const endIdx = Math.ceil(relEnd * fullText.length);
-      const snippet = fullText.slice(startIdx, endIdx).trim();
-      if (snippet.length > 0) {
-        const ref = block.getAttribute("data-ref");
-        parts.push(`${formatReference(ref)}\n${snippet}`);
-      }
+    if (visBottom - visTop > 0.5) {
+      const texts = block.querySelectorAll(".verseText");
+      let combinedText = "";
+      texts.forEach(t => combinedText += t.innerText.trim() + "\n");
+      const ref = block.getAttribute("data-ref");
+      parts.push(`${formatReference(ref)}\n${combinedText.trim()}`);
     }
   });
-
-  if (parts.length > 0) {
-    navigator.clipboard.writeText(parts.join("\n\n")).then(() => alert("تم نسخ النصوص الظاهرة"));
-  } else {
-    alert("لا توجد نصوص ظاهرة للنسخ");
-  }
+  if (parts.length > 0) navigator.clipboard.writeText(parts.join("\n\n")).then(() => alert("تم نسخ النصوص الظاهرة"));
 }
 
-/* prev/next controls:
-   If previous/next verse is already loaded in the DOM we smoothly center it.
-   Otherwise we reload popup centered on that verse (keeps behavior predictable).
-*/
-  function showPrevVerse() {
-            const prev = document.getElementById('prev');
-            const offsetTop = prev.offsetTop - container.offsetTop + container.scrollTop;
-            const debouncedScroll = debounce((top) => {
-                container.scrollTo({ top, behavior: 'smooth' });
-            }, 100);
-            debouncedScroll(offsetTop);
-        }
-
-        function showNextVerse() {
-            const next = document.getElementById('next');
-            const offsetTop = next.offsetTop - container.offsetTop + container.scrollTop;
-            const debouncedScroll = debounce((top) => {
-                container.scrollTo({ top, behavior: 'smooth' });
-            }, 100);
-            debouncedScroll(offsetTop);
-        }
-
-        function attachSwipe() {
-            let initialX = null;
-            let initialY = null;
-
-            function handleTouchStart(event) {
-                initialX = event.touches[0].clientX;
-                initialY = event.touches[0].clientY;
-            }
-
-            function handleTouchMove(event) {
-                if (!initialX || !initialY) return;
-
-                const currentX = event.touches[0].clientX;
-                const currentY = event.touches[0].clientY;
-                const diffX = currentX - initialX;
-                const diffY = currentY - initialY;
-
-                if (Math.abs(diffX) > Math.abs(diffY)) {
-                    const threshold = 50;
-                    if (Math.abs(diffX) > threshold) {
-                        const debouncedScroll = debounce((top) => {
-                            container.scrollTo({ top, behavior: 'smooth' });
-                        }, 100);
-                        debouncedScroll(container.scrollTop - diffX);
-                    }
-                }
-
-                initialX = currentX;
-                initialY = currentY;
-            }
-
-            function handleTouchEnd() {
-                initialX = null;
-                initialY = null;
-            }
-
-            container.addEventListener('touchstart', handleTouchStart);
-            container.addEventListener('touchmove', handleTouchMove);
-            container.addEventListener('touchend', handleTouchEnd);
-        }
-
-        function debounce(func, wait, immediate) {
-            let timeout;
-            return function() {
-                const context = this, args = arguments;
-                const later = function() {
-                    timeout = null;
-                    if (!immediate) func.apply(context, args);
-                };
-                const callNow = immediate && !timeout;
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-                if (callNow) func.apply(context, args);
-            };
-        }
-
-/* find the verse block closest to center of popup viewport */
 function getCenteredBlock() {
   const container = document.getElementById("popupContent");
   if (!container) return null;
@@ -658,24 +709,11 @@ function getCenteredBlock() {
   return best;
 }
 
-/* Click anywhere outside result <li> should keep original behavior:
-   close popup if clicking outside (keeps it compatible with original checks).
-*/
-const originalPopup = document.getElementById("popup");
 window.addEventListener("click", e => {
   const popup = document.getElementById("popup");
-  if (
-    popup &&
-    window.getComputedStyle(popup).display !== "none" &&
-    !popup.contains(e.target) &&
-    e.target.tagName !== "LI" &&
-    e.target.parentElement?.tagName !== "LI"
-  ) {
-    closePopup();
-  }
+  if (popup && window.getComputedStyle(popup).display !== "none" && !popup.contains(e.target) && e.target.tagName !== "LI" && e.target.parentElement?.tagName !== "LI") closePopup();
 });
 
-/* --- Backspace direct deletion (kept from original, unchanged) --- */
 searchBox.addEventListener('keydown', function(e) {
   if (e.key === 'Backspace') {
     e.preventDefault();
@@ -688,7 +726,6 @@ searchBox.addEventListener('keydown', function(e) {
     val = val.trimEnd(); const lastSpace = val.lastIndexOf(" ");
     searchBox.value = (lastSpace >= 0) ? val.substring(0,lastSpace+1) : "";
     selectedWords = searchBox.value.trim().split(" ").filter(w => w.length>0).map(normalizeInput);
-
     referenceSets = [];
     selectedWords.forEach(word => { const [entry] = indexData.filter(([_, h]) => h === word); if (entry) referenceSets.push(new Set(entry[2].split("@"))); });
     if (selectedWords.length === 0) {
@@ -703,362 +740,43 @@ searchBox.addEventListener('keydown', function(e) {
   }
 });
 
-/* helper */
 function intersectSets(sets) { if (sets.length===0) return []; return [...sets.reduce((a,b)=>new Set([...a].filter(x=>b.has(x))))]; }
 
-/* NOTE:
-   - versesData and indexData are provided via your verses.js and index.js files (kept as <script> tags above).
-   - showVersePopup(ref, phrase) is used by the result list items (li.onclick).
-   - copyVisibleVerses() copies the visible portion(s) of verse(s) as required.
-*/
-// --- new smooth scroll by 15% (used by ▲ button)
-// --- scroll to show next fully hidden verse at top
-// Scroll down: next page starts with the last line of current page
-  
 let popupFontSize = parseFloat(localStorage.getItem('popupFontSize')) || 1.6;
-
 function adjustFontSize(delta) {
   popupFontSize += delta * 0.1; 
   if (popupFontSize < 1) popupFontSize = 1;   
   if (popupFontSize > 3) popupFontSize = 3;
-
-  // save current font size to persist across sessions
   localStorage.setItem('popupFontSize', popupFontSize);
-
   const verses = document.querySelectorAll("#popupContent .verseText");
   verses.forEach(v => v.style.fontSize = popupFontSize + "rem");
 }
-let container = document.getElementById("popupContent");
-let scrollInterval = null;
-let holdTimer = null;
 
-document.addEventListener('DOMContentLoaded', function() {
-  const prevVerse = document.getElementById('prevBtn');
-  const nextVerse = document.getElementById('nextBtn');
-
-  function startScroll(direction) {
-    stopScroll(); 
-    scrollInterval = setInterval(() => {
-      container.scrollTop += direction * 5; // 5px per step
-    }, 16); // ~60fps
-  }
-
-  function stopScroll() {
-    if (scrollInterval) {
-      clearInterval(scrollInterval);
-      scrollInterval = null;
-    }
-    if (holdTimer) {
-      clearTimeout(holdTimer);
-      holdTimer = null;
-    }
-  }
-
-  function pageScroll(direction) {
-    container.scrollTop += direction * container.clientHeight; // one full page
-  }
-
-  function setupButton(btn, direction) {
-    // Mouse support
-    btn.addEventListener('mousedown', () => {
-      holdTimer = setTimeout(() => {
-        startScroll(direction); // start continuous if held >200ms
-      }, 200);
-    });
-
-    btn.addEventListener('mouseup', () => {
-      if (holdTimer) {
-        pageScroll(direction); // short press = one page
-      }
-      stopScroll();
-    });
-
-    btn.addEventListener('mouseleave', stopScroll);
-
-    // Touch support (Android/iOS)
-    btn.addEventListener('touchstart', (e) => {
-      e.preventDefault(); // prevent ghost click
-      holdTimer = setTimeout(() => {
-        startScroll(direction);
-      }, 200);
-    });
-
-    btn.addEventListener('touchend', () => {
-      if (holdTimer) {
-        pageScroll(direction); // tap = one page
-      }
-      stopScroll();
-    });
-
-    btn.addEventListener('touchcancel', stopScroll);
-  }
-
-  setupButton(prevVerse, -1); // scroll up
-  setupButton(nextVerse, 1);  // scroll down
-});
-  document.addEventListener("DOMContentLoaded", () => {
-  const popupContent = document.getElementById("popupContent");
-  const buttonBelt = document.querySelector("#popup .button-belt"); // adjust if belt has different selector
-
-  function adjustPadding() {
-    if (popupContent && buttonBelt) {
-      popupContent.style.paddingBottom = (buttonBelt.offsetHeight + 10) + "px"; 
-    }
-  }
-
-  adjustPadding();
-  window.addEventListener("resize", adjustPadding);
-});
-</script>
-<script>
 (function(){
-  const DEBUG = false;              // set true to see console logs
-  const STEP_PCT = 0.5;             // 50% of visible popup height
-  const IGNORE_INPUT_FOCUS = false; // set true if arrow keys must work even when input focused
-
-  if (window.__halfPageScrollInstalled) {
-    if (DEBUG) console.log('half-page scroll already installed');
-    return;
-  }
-  window.__halfPageScrollInstalled = true;
-
-  function getContainer() {
-    return document.getElementById('popupContent');
-  }
-
+  const STEP_PCT = 0.5;
+  function getContainer() { return document.getElementById('popupContent'); }
   function isPopupVisible() {
     const popup = document.getElementById('popup');
-    if (!popup) return false;
-    const style = window.getComputedStyle(popup);
-    return style.display !== 'none' && popup.offsetParent !== null;
+    return popup && window.getComputedStyle(popup).display !== 'none';
   }
-
   function clampTop(t) {
     const c = getContainer();
-    if (!c) return 0;
     return Math.max(0, Math.min(c.scrollHeight - c.clientHeight, t));
   }
-
   function scrollByPercent(direction) {
     const c = getContainer();
-    if (!c) {
-      if (DEBUG) console.warn('popupContent not found');
-      return;
-    }
+    if (!c) return;
     const step = Math.round(c.clientHeight * STEP_PCT);
     const newTop = clampTop(c.scrollTop + direction * step);
-    // If newTop equals current, do small nudge to show movement
-    if (newTop === c.scrollTop) {
-      // try to nudge to end/start
-      const fallback = direction > 0 ? (c.scrollHeight - c.clientHeight) : 0;
-      if (fallback !== c.scrollTop) {
-        c.scrollTo({ top: fallback, behavior: 'smooth' });
-        if (DEBUG) console.log('fallback scroll to', fallback);
-        return;
-      }
-      if (DEBUG) console.log('already at boundary; no scroll');
-      return;
-    }
     c.scrollTo({ top: newTop, behavior: 'smooth' });
-    if (DEBUG) console.log('scrolled to', newTop, 'step', step);
   }
-
-  // expose globals (override old definitions if present)
-  window.scrollDown15 = function() { scrollByPercent(1); };
-  window.scrollUp15   = function() { scrollByPercent(-1); };
-
-  // keyboard handler (capture phase so we catch it earlier)
-  function onKey(e) {
-    try {
-      if (!isPopupVisible()) return;
-      if (!IGNORE_INPUT_FOCUS && ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
-
-      switch (e.key) {
-        case 'ArrowDown':
-        case 'PageDown':
-          e.preventDefault(); scrollByPercent(1); break;
-        case 'ArrowUp':
-        case 'PageUp':
-          e.preventDefault(); scrollByPercent(-1); break;
-        case ' ':
-          if (!['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) {
-            e.preventDefault();
-            if (e.shiftKey) scrollByPercent(-1); else scrollByPercent(1);
-          }
-          break;
-      }
-    } catch (err) {
-      if (DEBUG) console.error('half-page onKey error', err);
-    }
-  }
-
-  // attach listener once
-  document.addEventListener('keydown', onKey, true);
-
-  // bind buttons (click/touch)
-  function bindButtons() {
-    const prev = document.getElementById('prevBtn');
-    const next = document.getElementById('nextBtn');
-    if (prev) prev.addEventListener('click', (ev) => { ev.preventDefault(); scrollByPercent(-1); });
-    if (next) next.addEventListener('click', (ev) => { ev.preventDefault(); scrollByPercent(1); });
-
-    // optional: support long-press to continuous scroll
-    [ [prev, -1], [next, 1] ].forEach(([btn, dir]) => {
-      if (!btn) return;
-      let holdTimer = null;
-      let intv = null;
-      btn.addEventListener('pointerdown', (ev) => {
-        ev.preventDefault();
-        holdTimer = setTimeout(() => {
-          intv = setInterval(() => {
-            const c = getContainer();
-            if (!c) return;
-            c.scrollTop = clampTop(c.scrollTop + dir * 8); // continuous small steps
-          }, 16);
-        }, 220);
-      });
-      const stop = () => { clearTimeout(holdTimer); holdTimer = null; if (intv) { clearInterval(intv); intv = null; } };
-      btn.addEventListener('pointerup', (ev) => { stop(); scrollByPercent(dir); });
-      btn.addEventListener('pointerleave', stop);
-      btn.addEventListener('pointercancel', stop);
-    });
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindButtons);
-  else bindButtons();
-
-  if (DEBUG) console.log('half-page scroll installed (STEP_PCT=' + STEP_PCT + ', IGNORE_INPUT_FOCUS=' + IGNORE_INPUT_FOCUS + ')');
+  document.addEventListener('keydown', (e) => {
+    if (!isPopupVisible()) return;
+    if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+    if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); scrollByPercent(1); }
+    if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); scrollByPercent(-1); }
+  }, true);
 })();
-
-function appendBlockAt(container, idx, phrase) {
-  const [r, verse] = versesData[idx];
-  if (container.querySelector(`[data-ref="${r}"]`)) return;
-
-  const block = document.createElement("div");
-  block.className = "verseBlock";
-  block.setAttribute("data-ref", r);
-
-  const refDiv = document.createElement("div");
-  refDiv.className = "verseRef";
-  refDiv.textContent = formatReference(r);
-  block.appendChild(refDiv);
-
-  // Arabic
-  if (document.getElementById("toggleArabic")?.checked) {
-    const textDiv = document.createElement("div");
-    textDiv.className = "verseText";
-    textDiv.innerHTML = (phrase && verse.includes(phrase)) ? highlight(verse, phrase) : verse;
-    textDiv.style.fontSize = popupFontSize + "rem";
-    block.appendChild(textDiv);
-  }
-
-  // Word by Word
-  if (document.getElementById("toggleWordByWord")?.checked && window.wordByWordData) {
-    const wEntry = wordByWordData.find(([ref]) => ref === r);
-    if (wEntry) {
-      const w = document.createElement("div");
-      w.className = "verseText";
-      w.style.color = "green";
-      w.textContent = wEntry[1];
-      w.style.fontSize = popupFontSize + "rem";
-      block.appendChild(w);
-    }
-  }
-
-  // Simple Translation
-  if (document.getElementById("toggleSimple")?.checked && window.simpleTranslationData) {
-    const sEntry = simpleTranslationData.find(([ref]) => ref === r);
-    if (sEntry) {
-      const s = document.createElement("div");
-      s.className = "verseText";
-      s.style.color = "blue";
-      s.textContent = sEntry[1];
-      s.style.fontSize = popupFontSize + "rem";
-      block.appendChild(s);
-    }
-  }
-
-  // Tafseer
-  if (document.getElementById("toggleTafseer")?.checked && window.tafseerData) {
-    const tEntry = tafseerData.find(([ref]) => ref === r);
-    if (tEntry) {
-      const t = document.createElement("div");
-      t.className = "verseText";
-      t.style.color = "brown";
-      t.textContent = tEntry[1];
-      t.style.fontSize = popupFontSize + "rem";
-      block.appendChild(t);
-    }
-  }
-
-  container.appendChild(block);
-}
-
-function prependBlockAt(container, idx, phrase) {
-  const [r, verse] = versesData[idx];
-  if (container.querySelector(`[data-ref="${r}"]`)) return;
-
-  const block = document.createElement("div");
-  block.className = "verseBlock";
-  block.setAttribute("data-ref", r);
-
-  const refDiv = document.createElement("div");
-  refDiv.className = "verseRef";
-  refDiv.textContent = formatReference(r);
-  block.appendChild(refDiv);
-
-  // Arabic
-  if (document.getElementById("toggleArabic")?.checked) {
-    const textDiv = document.createElement("div");
-    textDiv.className = "verseText";
-    textDiv.innerHTML = (phrase && verse.includes(phrase)) ? highlight(verse, phrase) : verse;
-    textDiv.style.fontSize = popupFontSize + "rem";
-    block.appendChild(textDiv);
-  }
-
-  // Word by Word
-  if (document.getElementById("toggleWordByWord")?.checked && window.wordByWordData) {
-    const wEntry = wordByWordData.find(([ref]) => ref === r);
-    if (wEntry) {
-      const w = document.createElement("div");
-      w.className = "verseText";
-      w.style.color = "green";
-      w.textContent = wEntry[1];
-      w.style.fontSize = popupFontSize + "rem";
-      block.appendChild(w);
-    }
-  }
-
-  // Simple Translation
-  if (document.getElementById("toggleSimple")?.checked && window.simpleTranslationData) {
-    const sEntry = simpleTranslationData.find(([ref]) => ref === r);
-    if (sEntry) {
-      const s = document.createElement("div");
-      s.className = "verseText";
-      s.style.color = "blue";
-      s.textContent = sEntry[1];
-      s.style.fontSize = popupFontSize + "rem";
-      block.appendChild(s);
-    }
-  }
-
-  // Tafseer
-  if (document.getElementById("toggleTafseer")?.checked && window.tafseerData) {
-    const tEntry = tafseerData.find(([ref]) => ref === r);
-    if (tEntry) {
-      const t = document.createElement("div");
-      t.className = "verseText";
-      t.style.color = "brown";
-      t.textContent = tEntry[1];
-      t.style.fontSize = popupFontSize + "rem";
-      block.appendChild(t);
-    }
-  }
-
-  container.insertBefore(block, container.firstChild);
-}
-
 </script>
-
 </body>
 </html>
